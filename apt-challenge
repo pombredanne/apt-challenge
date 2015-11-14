@@ -1,0 +1,99 @@
+#!/usr/bin/env python3
+
+import re
+import apt
+import sys
+import debian
+import requests
+
+from debian.deb822 import Deb822
+
+NUM_WARNINGS = 0
+BUILDINFO_URL = 'https://reproducible.debian.net/buildinfo/unstable/{architecture}/{source}_{version}_{architecture}.buildinfo'
+
+re_epoch = re.compile(r'^\d+:')
+
+def main():
+    session = requests.Session()
+
+    def warn(msg, fmt):
+        print("W: " + msg.format(**fmt).strip(), file=sys.stderr)
+        global NUM_WARNINGS
+        NUM_WARNINGS += 1
+
+    for x in sys.argv[1:]:
+        try:
+            pkg = apt.cache.Cache()[x]
+        except KeyError:
+            warn("{package}: unknown binary package", {
+                'package': x,
+            })
+            continue
+
+        installed = pkg.installed
+
+        if installed is None:
+            warn("{binary}: not installed", {'binary': pkg.name})
+            continue
+
+        attrs = {
+            'binary': pkg.name,
+            'source': installed.source_name,
+            'version': re_epoch.sub('', installed.source_version),
+            'architecture': installed.architecture,
+        }
+
+        response = session.get(BUILDINFO_URL.format(**attrs))
+
+        # Catch 404 specifically...
+        if response.status_code == 404:
+            warn("{binary}: could not download .buildinfo for "
+                "{version}/{architecture}", attrs)
+            continue
+
+        # ... but raise for all other errors
+        response.raise_for_status()
+
+        buildinfo = Deb822(response.text)
+
+        assert buildinfo['Source'] == installed.source_name
+        assert buildinfo['Version'] == installed.version
+
+        filename = installed.filename.rsplit('/', 1)[1]
+
+        for attr, field in (
+            ('sha1', 'Checksums-Sha1'),
+            ('sha256', 'Checksums-Sha1'),
+        ):
+            # Parse the "Checksums-X" line
+            parsed = {}
+            for x in buildinfo[field].strip().splitlines():
+                checksum, _, deb = x.strip().split(' ', 3)
+                parsed[deb] = checksum
+
+            try:
+                expected = parsed[filename]
+            except KeyError:
+                warn("{binary}: no entry for {filename} in {field}", {
+                    'field': field,
+                    'binary': pkg.name,
+                    'filename': filename,
+                })
+                break
+
+            seen = getattr(installed, attr)
+
+            if seen != expected:
+                warn("{filename}: expected {attr} checksum {expected} but "
+                        "{seen} is installed", {
+                    'attr': attr,
+                    'seen': seen,
+                    'filename': filename,
+                    'expected': expected,
+                })
+                break
+
+    return bool(NUM_WARNINGS)
+
+if __name__ == '__main__':
+    sys.exit(main())
