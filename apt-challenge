@@ -74,9 +74,10 @@ def main():
         assert buildinfo['Source'] == installed.source_name
 
         if buildinfo['Version'] != installed.version:
-            warn(".buildinfo specifies Version: {seen} but {expected} "
+            warn("{binary}: .buildinfo specifies Version: {seen} but {expected} "
                     "is installed", {
                 'seen': buildinfo['Version'],
+                'binary': pkg.name,
                 'expected': installed.version,
             })
             continue
