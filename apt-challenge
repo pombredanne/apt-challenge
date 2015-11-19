@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
 import re
+import os
 import apt
 import sys
 import debian
+import logging
 import requests
 
 from debian.deb822 import Deb822
@@ -12,6 +14,13 @@ NUM_WARNINGS = 0
 BUILDINFO_URL = 'https://reproducible.debian.net/buildinfo/unstable/{architecture}/{source}_{version}_{architecture}.buildinfo'
 
 re_epoch = re.compile(r'^\d+:')
+
+log = logging.getLogger()
+logging.basicConfig(
+    level=logging.DEBUG if 'APT_CHALLENGE_DEBUG' in os.environ \
+        else logging.WARNING,
+    format='%(levelname).1s: %(message)s',
+)
 
 def main():
     session = requests.Session()
