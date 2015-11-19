@@ -52,6 +52,10 @@ def main():
             'architecture': installed.architecture,
         }
 
+        # Use the amd64 build for arch:all packages
+        if attrs['architecture'] == 'all':
+            attrs['architecture'] = 'amd64'
+
         log.debug("Downloading .buildinfo for %s", installed.source_name)
 
         response = session.get(BUILDINFO_URL.format(**attrs))
