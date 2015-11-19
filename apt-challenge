@@ -68,7 +68,14 @@ def main():
         buildinfo = Deb822(response.text)
 
         assert buildinfo['Source'] == installed.source_name
-        assert buildinfo['Version'] == installed.version
+
+        if buildinfo['Version'] != installed.version:
+            warn(".buildinfo specifies Version: {seen} but {expected} "
+                    "is installed", {
+                'seen': buildinfo['Version'],
+                'expected': installed.version,
+            })
+            break
 
         filename = installed.filename.rsplit('/', 1)[1]
 
