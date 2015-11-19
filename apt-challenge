@@ -26,7 +26,7 @@ def main():
     session = requests.Session()
 
     def warn(msg, fmt):
-        print("W: " + msg.format(**fmt).strip(), file=sys.stderr)
+        log.warning(msg.format(**fmt).strip())
         global NUM_WARNINGS
         NUM_WARNINGS += 1
 
@@ -51,6 +51,8 @@ def main():
             'version': re_epoch.sub('', installed.source_version),
             'architecture': installed.architecture,
         }
+
+        log.debug("Downloading .buildinfo for %s", installed.source_name)
 
         response = session.get(BUILDINFO_URL.format(**attrs))
 
