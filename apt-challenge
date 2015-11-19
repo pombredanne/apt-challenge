@@ -79,7 +79,7 @@ def main():
                 'seen': buildinfo['Version'],
                 'expected': installed.version,
             })
-            break
+            continue
 
         filename = installed.filename.rsplit('/', 1)[1]
 
